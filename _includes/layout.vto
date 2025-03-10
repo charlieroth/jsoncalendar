@@ -8,7 +8,93 @@
   </head>
   <body class="min-h-screen bg-background">
     <div class="mx-auto max-w-3xl px-8 py-12">
+      <header class="flex items-center justify-end mb-12">
+          <button id="theme-toggle" class="text-xl text-foreground hover:text-muted-foreground">
+            <svg id="theme-toggle-icon-moon" xmlns="http://www.w3.org/2000/svg" width="24" height="24" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round">
+              <path d="M12 3a6 6 0 0 0 9 9 9 9 0 1 1-9-9Z"/>
+            </svg>
+            <svg id="theme-toggle-icon-sun" xmlns="http://www.w3.org/2000/svg" width="24" height="24" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round">
+              <circle cx="12" cy="12" r="4"/>
+              <path d="M12 2v2"/>
+              <path d="M12 20v2"/>
+              <path d="m4.93 4.93 1.41 1.41"/>
+              <path d="m17.66 17.66 1.41 1.41"/>
+              <path d="M2 12h2"/>
+              <path d="M20 12h2"/>
+              <path d="m6.34 17.66-1.41 1.41"/>
+              <path d="m19.07 4.93-1.41 1.41"/>
+            </svg>
+        </nav>
+      </header>
       {{ content }}
     </div>
+    <script>
+      // Constants
+      const THEME = {
+        DARK: "dark",
+        LIGHT: "light",
+        STORAGE_KEY: "theme",
+      };
+
+      // DOM Elements
+      const colorThemes = document.querySelectorAll("[data-color-mode]");
+      const darkModeToggleButton = document.getElementById("theme-toggle");
+      const themeToggleIconMoon = document.getElementById("theme-toggle-icon-moon");
+      const themeToggleIconSun = document.getElementById("theme-toggle-icon-sun");
+
+      // Get user's preferred theme
+      const getUserPreference = () => {
+        const storedTheme = localStorage.getItem(THEME.STORAGE_KEY);
+        if (storedTheme) return storedTheme;
+
+        return window.matchMedia("(prefers-color-scheme: dark)").matches
+          ? THEME.DARK
+          : THEME.LIGHT;
+      };
+
+      // Update theme in DOM and localStorage
+      const setTheme = (theme) => {
+        document.documentElement.classList.remove(THEME.DARK, THEME.LIGHT);
+        document.documentElement.classList.add(theme);
+        themeToggleIconMoon.classList.toggle("hidden", theme === THEME.LIGHT);
+        themeToggleIconSun.classList.toggle("hidden", theme === THEME.DARK);
+
+        colorThemes.forEach((el) => {
+          el.setAttribute("data-color-mode", theme);
+        });
+
+        localStorage.setItem(THEME.STORAGE_KEY, theme);
+      };
+
+      // Toggle between light and dark themes
+      const toggleDarkMode = () => {
+        const currentTheme = getUserPreference();
+        const newTheme = currentTheme === THEME.LIGHT ? THEME.DARK : THEME.LIGHT;
+        setTheme(newTheme);
+      };
+
+      // Initialize
+      const init = () => {
+        if (!darkModeToggleButton) {
+          console.warn("Theme toggle button not found");
+          return;
+        }
+
+        // Set initial theme
+        setTheme(getUserPreference());
+
+        // Add click listener
+        darkModeToggleButton.addEventListener("click", toggleDarkMode);
+
+        // Listen for system theme changes
+        window.matchMedia("(prefers-color-scheme: dark)")
+          .addEventListener("change", (e) => {
+            if (!localStorage.getItem(THEME.STORAGE_KEY)) {
+              setTheme(e.matches ? THEME.DARK : THEME.LIGHT);
+            }
+          });
+      };
+      init();
+    </script>
   </body>
 </html>
