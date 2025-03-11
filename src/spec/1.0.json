@@ -2,6 +2,23 @@
   "$schema": "https://json-schema.org/draft/2020-12/schema",
   "title": "JSON Calendar File Format Schema",
   "description": "A JSON Schema for the modern .jsoncalendar file format proposal, focusing on events and core calendaring features.",
+  "$defs": {
+    "Duration": {
+      "title": "Duration",
+      "description": "A structured representation of a ISO 8601 duration. At least one property is required.",
+      "type": "object",
+      "minProperties": 1,
+      "properties": {
+        "years": { "type": "number", "minimum": 0 },
+        "months": { "type": "number", "minimum": 0 },
+        "days": { "type": "number", "minimum": 0 },
+        "hours": { "type": "number", "minimum": 0 },
+        "minutes": { "type": "number", "minimum": 0 },
+        "seconds": { "type": "number", "minimum": 0 }
+      },
+      "additionalProperties": false
+    }
+  },
   "type": "object",
   "required": ["version", "prodID", "calendar"],
   "properties": {
@@ -103,8 +120,17 @@
                       "description": "The type of notification."
                     },
                     "trigger": {
-                      "type": "string",
-                      "description": "A duration (ISO 8601) or a specific date-time when the notification should trigger."
+                      "oneOf": [
+                        {
+                          "$ref": "#/$defs/Duration"
+                        },
+                        {
+                          "type": "string",
+                          "format": "date-time",
+                          "description": "An absolute date-time when the notification should trigger."
+                        }
+                      ],
+                      "description": "Either a structured duration object representing a relative trigger or an absolute date-time string."
                     },
                     "message": {
                       "type": "string",
