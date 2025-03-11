@@ -5,6 +5,7 @@ import typography from "npm:@tailwindcss/typography";
 
 const site = lume({
   location: new URL("https://jsoncalendar.org"),
+  src: "./src"
 });
 
 site.use(tailwindcss({

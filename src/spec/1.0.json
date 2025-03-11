@@ -142,11 +142,6 @@
             },
             "additionalProperties": false
           }
-        },
-        "custom": {
-          "type": "object",
-          "description": "An optional object for custom extensions.",
-          "additionalProperties": true
         }
       },
       "additionalProperties": false

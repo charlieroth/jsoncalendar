@@ -1,3 +1,8 @@
+---
+title: JSON Calendar
+layout: page.vto
+---
+
 # An open file format for calendar data.
 
 Calendars are a way to view and organize our lives. Calendars encourage accountability of the past, present and future.
