@@ -337,6 +337,14 @@
           ],
           "description": "The status of the event."
         },
+        "transparency": {
+          "type": "string",
+          "enum": [
+            "opaque",
+            "transparent"
+          ],
+          "description": "Indicates whether the event blocks time on a calendar. 'opaque' means it does block time, 'transparent' means it does not."
+        },
         "url": {
           "type": "string",
           "format": "uri",
