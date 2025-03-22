@@ -264,7 +264,7 @@
           "type": "number",
           "description": "The longitude coordinate of the location."
         },
-        "mapURL": {
+        "mapUrl": {
           "type": "string",
           "format": "uri",
           "description": "An optional URL for a map service (e.g., Google Maps, Apple Maps) to view the location."
@@ -322,12 +322,12 @@
         "start": {
           "type": "string",
           "format": "date-time",
-          "description": "The event start date and time in ISO 8601 format."
+          "description": "The event start date and time in ISO 8601 format, including the timezone offset (e.g., '2024-03-10T10:00:00-05:00')"
         },
         "end": {
           "type": "string",
           "format": "date-time",
-          "description": "The event end date and time in ISO 8601 format."
+          "description": "The event end date and time in ISO 8601 format, including the timezone offset (e.g., '2024-03-10T10:00:00-05:00')"
         },
         "recurrence": {
           "$ref": "#/$defs/Recurrence"
@@ -387,7 +387,7 @@
       "properties": {
         "timezone": {
           "type": "string",
-          "description": "An IANA time zone identifier (e.g., 'America/New_York')."
+          "description": "This field is crucial for accurate event scheduling and should adhere to the IANA time zone database"
         },
         "name": {
           "type": "string",
@@ -411,7 +411,6 @@
   "type": "object",
   "required": [
     "version",
-    "productIdentifier",
     "calendar"
   ],
   "properties": {
@@ -424,7 +423,7 @@
     },
     "productIdentifier": {
       "type": "string",
-      "description": "A product identifier for the application or system generating the file."
+      "description": "An optional identifier for the application or system that last modified the file"
     },
     "calendar": {
       "$ref": "#/$defs/Calendar"
