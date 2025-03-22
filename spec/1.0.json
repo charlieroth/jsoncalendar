@@ -103,7 +103,28 @@
           ]
         }
       },
-      "additionalProperties": false
+      "additionalProperties": false,
+      "oneOf": [
+        {
+          "required": [
+            "frequency",
+            "interval"
+          ]
+        },
+        {
+          "required": [
+            "until"
+          ]
+        },
+        {
+          "required": [
+            "count"
+          ]
+        }
+      ],
+      "errorMessage": {
+        "oneOf": "Recurrence must have 'frequency' and 'interval' or 'until' or 'count'."
+      }
     },
     "Attendee": {
       "title": "Attendee",
