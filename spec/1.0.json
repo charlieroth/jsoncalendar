@@ -62,39 +62,12 @@
         "until": {
           "type": "string",
           "format": "date-time",
-          "description": "A date-time indicating when the recurrence ends."
+          "description": "When the recurrence ends, date and time in ISO 8601 format, including the timezone offset (e.g., '2024-03-10T10:00:00-05:00')"
         },
         "count": {
           "type": "integer",
           "minimum": 1,
           "description": "The number of occurrences."
-        },
-        "bySecond": {
-          "type": "array",
-          "description": "Optional array specifying the seconds for recurrence (0-59).",
-          "items": {
-            "type": "integer",
-            "minimum": 0,
-            "maximum": 59
-          }
-        },
-        "byMinute": {
-          "type": "array",
-          "description": "Optional array specifying the minutes for recurrence (0-59).",
-          "items": {
-            "type": "integer",
-            "minimum": 0,
-            "maximum": 59
-          }
-        },
-        "byHour": {
-          "type": "array",
-          "description": "Optional array specifying the hours for recurrence (0-23).",
-          "items": {
-            "type": "integer",
-            "minimum": 0,
-            "maximum": 23
-          }
         },
         "byDay": {
           "type": "array",
@@ -114,46 +87,6 @@
             "not": {
               "const": 0
             }
-          }
-        },
-        "byYearDay": {
-          "type": "array",
-          "description": "Optional array specifying the days of the year for recurrence (-366 to -1 or 1 to 366, zero is not allowed).",
-          "items": {
-            "type": "integer",
-            "minimum": -366,
-            "maximum": 366,
-            "not": {
-              "const": 0
-            }
-          }
-        },
-        "byWeekNumber": {
-          "type": "array",
-          "description": "Optional array specifying the week numbers for recurrence (-53 to -1 or 1 to 53, zero is not allowed).",
-          "items": {
-            "type": "integer",
-            "minimum": -53,
-            "maximum": 53,
-            "not": {
-              "const": 0
-            }
-          }
-        },
-        "byMonth": {
-          "type": "array",
-          "description": "Optional array specifying the months for recurrence (1-12).",
-          "items": {
-            "type": "integer",
-            "minimum": 1,
-            "maximum": 12
-          }
-        },
-        "bySetPosition": {
-          "type": "array",
-          "description": "Optional array specifying the nth occurrence within the set of recurrence instances.",
-          "items": {
-            "type": "integer"
           }
         },
         "weekStart": {
