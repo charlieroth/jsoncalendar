@@ -15,6 +15,6 @@ JSON Calendar uses [JSON Schema](https://json-schema.org/) to define the structu
 JSON Calendar can be implemented freely as an import, export, and storage format for any [app or tool](/apps).
 This site, and all resources associated with JSON Calendar are [open source](https://github.com/charlieroth/jsoncalendar) under the MIT license.
 
-<a target="_blank" href="https://charlieroth.me/json-calendar" class="text-xl font-medium text-foreground hover:text-muted-foreground">
-  Read the motivation for JSON Calendar
+<a target="_blank" href="https://charlieroth.me/artifacts/json-calendar" class="text-xl font-medium text-foreground hover:text-muted-foreground">
+  The thinking behind JSON Calendar
 </a>
