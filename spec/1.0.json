@@ -134,7 +134,7 @@
         "count": {
           "type": "integer",
           "minimum": 1,
-          "description": "The number of occurrences."
+          "description": "The number of occurrences that pass all by* rule filters, not the number of frequency intervals."
         },
         "bySecond": {
           "type": "array",
@@ -182,7 +182,7 @@
         },
         "byMonthDay": {
           "type": "array",
-          "description": "Optional array specifying the days of the month for recurrence (1-31 or -31 to -1, zero is not allowed).",
+          "description": "Optional array specifying the days of the month for recurrence (1-31 or -31 to -1, zero is not allowed). Invalid dates (e.g., Feb 31) are skipped entirely.",
           "items": {
             "type": "integer",
             "minimum": -31,
@@ -229,7 +229,7 @@
         },
         "bySetPosition": {
           "type": "array",
-          "description": "Optional array specifying the nth occurrence within the set of recurrence instances.",
+          "description": "Optional array specifying the nth occurrence within the set of recurrence instances. Applied LAST after all other by* rules have filtered the occurrences.",
           "items": {
             "type": "integer",
             "minimum": -366,
@@ -237,7 +237,8 @@
             "not": { "const": 0 }
           },
           "uniqueItems": true,
-          "minItems": 1
+          "minItems": 1,
+          "examples": [[1], [-1], [1, -1]]
         },
         "weekStart": {
           "type": "string",
@@ -256,7 +257,47 @@
         }
       ],
       "additionalProperties": false,
-      "$comment": "Semantic validation requirements for implementations: (1) if byMonthDay contains values > 29, implementations should handle non-existent dates gracefully (e.g., Feb 30), (2) bySetPosition is applied AFTER all other by* rules to select specific instances, (3) multiple by* rules create an intersection (AND) not union (OR) of occurrences, (4) when calculating recurring events with an originalTimezone, expand occurrences in that timezone to preserve local time semantics across DST transitions"
+      "$comment": "Semantic validation requirements for implementations: (1) if byMonthDay contains values > 29, implementations should handle non-existent dates gracefully (e.g., Feb 30), (2) bySetPosition is applied AFTER all other by* rules to select specific instances, (3) multiple by* rules create an intersection (AND) not union (OR) of occurrences, (4) when calculating recurring events with an originalTimezone, expand occurrences in that timezone to preserve local time semantics across DST transitions",
+      "x-recurrence-edge-cases": {
+        "invalidDates": {
+          "description": "When a recurrence rule generates an invalid date (e.g., Feb 30, April 31), the occurrence MUST be skipped entirely. Do not shift to a valid date.",
+          "example": "Monthly on the 31st: Jan 31, Feb (skip), Mar 31, Apr (skip), May 31..."
+        },
+        "byRuleEvaluation": {
+          "description": "Multiple by* rules are evaluated as a logical AND. An occurrence is only included if it matches ALL specified by* rules.",
+          "order": [
+            "1. Start with frequency/interval base set",
+            "2. Apply byMonth filter",
+            "3. Apply byWeekNumber filter",
+            "4. Apply byYearDay filter",
+            "5. Apply byMonthDay filter",
+            "6. Apply byDay filter",
+            "7. Apply byHour filter",
+            "8. Apply byMinute filter",
+            "9. Apply bySecond filter",
+            "10. Finally, apply bySetPosition to the filtered set"
+          ]
+        },
+        "dstTransitions": {
+          "spring": {
+            "description": "When clocks spring forward, times in the skipped hour do not exist. Skip the occurrence entirely.",
+            "example": "Daily at 2:30am during spring DST: Mar 11 (skip), Mar 12 at 2:30am..."
+          },
+          "fall": {
+            "description": "When clocks fall back, times in the repeated hour occur twice. Generate only ONE occurrence using the FIRST instance (before the transition).",
+            "example": "Daily at 1:30am during fall DST: Nov 4 at 1:30am EDT (not 1:30am EST), Nov 5 at 1:30am EST..."
+          },
+          "principle": "Preserve wall clock time where possible. When impossible (spring forward), skip the occurrence."
+        },
+        "conflictResolution": {
+          "description": "There are no 'conflicts' between by* rules - they form a logical AND. If no dates match all rules, the recurrence has no occurrences.",
+          "example": "FREQ=MONTHLY;BYMONTHDAY=31;BYMONTH=2 produces no occurrences (February never has 31 days)"
+        },
+        "countCalculation": {
+          "description": "The COUNT parameter counts occurrences that pass ALL filters, not potential occurrences.",
+          "example": "FREQ=MONTHLY;BYMONTHDAY=31;COUNT=3 might span 5 months: Jan 31, Mar 31, May 31"
+        }
+      }
     },
     "Notification": {
       "type": "object",
@@ -441,7 +482,7 @@
       "$comment": "Additional semantic validations that implementations MUST enforce: (1) end >= start for both date and datetime events, (2) recurrence.until >= start if present, (3) recurrence.count must be >= 1 if present, (4) relative notification triggers must be negative for 'before event' reminders. For timezone handling: When originalTimezone is provided, recurring events should be calculated in that timezone, then converted to UTC. This ensures consistent local times across DST boundaries."
     }
   },
-  "$comment": "JSON Calendar Format - Implementations MUST enforce semantic validations beyond structural validation. See individual $comment fields for specific requirements. Timezone Handling: All times are stored in UTC, but originalTimezone preserves the creator's intent for recurring events. When processing recurring events with an originalTimezone, calculate occurrences in that timezone, then convert to UTC. This ensures events like 'every Monday at 9am' remain at 9am local time regardless of DST changes.",
+  "$comment": "JSON Calendar Format - Implementations MUST enforce semantic validations beyond structural validation. See individual $comment fields for specific requirements. Timezone Handling: All times are stored in UTC, but originalTimezone preserves the creator's intent for recurring events. When processing recurring events with an originalTimezone, calculate occurrences in that timezone, then convert to UTC. This ensures events like 'every Monday at 9am' remain at 9am local time regardless of DST changes. Recurrence Rules: See x-recurrence-edge-cases in the Recurrence definition for detailed handling of edge cases including invalid dates, DST transitions, and by* rule evaluation order.",
   "type": "object",
   "required": ["version", "productIdentifier", "calendar"],
   "properties": {
