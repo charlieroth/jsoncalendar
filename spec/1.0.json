@@ -3,6 +3,26 @@
   "title": "JSON Calendar File Format Schema",
   "description": "A JSON Schema for the modern .jsoncalendar file format proposal, focusing on events and core calendaring features.",
   "$defs": {
+    "DateTime": {
+      "type": "string",
+      "format": "date-time",
+      "pattern": "^\\d{4}-\\d{2}-\\d{2}T\\d{2}:\\d{2}:\\d{2}Z$",
+      "description": "UTC date-time in ISO 8601 format",
+      "examples": ["2024-12-25T15:00:00Z", "2024-01-01T00:00:00Z"]
+    },
+    "Date": {
+      "type": "string",
+      "format": "date",
+      "pattern": "^\\d{4}-\\d{2}-\\d{2}$",
+      "description": "Date in ISO 8601 format",
+      "examples": ["2024-12-25", "2024-01-01"]
+    },
+    "Email": {
+      "type": "string",
+      "format": "email",
+      "pattern": "^[a-zA-Z0-9._%+-]+@[a-zA-Z0-9.-]+\\.[a-zA-Z]{2,}$",
+      "examples": ["user@example.com", "john.doe@company.org"]
+    },
     "Duration": {
       "title": "Duration",
       "description": "A structured representation of an ISO 8601 duration. At least one property is required.",
@@ -11,29 +31,346 @@
       "properties": {
         "years": {
           "type": "number",
-          "minimum": 0
+          "minimum": 0,
+          "default": 0
         },
         "months": {
           "type": "number",
-          "minimum": 0
+          "minimum": 0,
+          "default": 0
         },
         "days": {
           "type": "number",
-          "minimum": 0
+          "minimum": 0,
+          "default": 0
         },
         "hours": {
           "type": "number",
-          "minimum": 0
+          "minimum": 0,
+          "default": 0
         },
         "minutes": {
           "type": "number",
-          "minimum": 0
+          "minimum": 0,
+          "default": 0
         },
         "seconds": {
           "type": "number",
-          "minimum": 0
+          "minimum": 0,
+          "default": 0
         }
       },
+      "additionalProperties": false,
+      "examples": [
+        { "minutes": 15 },
+        { "hours": 1, "minutes": 30 },
+        { "days": 1 }
+      ]
+    },
+    "Location": {
+      "type": "object",
+      "description": "A structured representation of the event location.",
+      "required": ["name"],
+      "properties": {
+        "name": {
+          "type": "string",
+          "description": "Name or title of the location.",
+          "examples": ["Conference Room A", "Central Park", "Virtual Meeting"]
+        },
+        "address": {
+          "type": "string",
+          "description": "The physical address of the location.",
+          "examples": [
+            "123 Main St, New York, NY 10001",
+            "1 Infinite Loop, Cupertino, CA"
+          ]
+        },
+        "latitude": {
+          "type": "number",
+          "minimum": -90,
+          "maximum": 90,
+          "description": "The latitude coordinate of the location."
+        },
+        "longitude": {
+          "type": "number",
+          "minimum": -180,
+          "maximum": 180,
+          "description": "The longitude coordinate of the location."
+        },
+        "mapURL": {
+          "type": "string",
+          "format": "uri",
+          "pattern": "^https?://",
+          "description": "An optional URL for a map service (e.g., Google Maps, Apple Maps) to view the location.",
+          "examples": ["https://maps.google.com/?q=40.7128,-74.0060"]
+        }
+      },
+      "dependencies": {
+        "latitude": ["longitude"],
+        "longitude": ["latitude"]
+      },
+      "additionalProperties": false
+    },
+    "Recurrence": {
+      "type": "object",
+      "description": "Details for recurring events.",
+      "required": ["frequency"],
+      "properties": {
+        "frequency": {
+          "type": "string",
+          "enum": ["second", "minute", "hour", "day", "week", "month", "year"],
+          "description": "The frequency of recurrence."
+        },
+        "interval": {
+          "type": "integer",
+          "minimum": 1,
+          "default": 1,
+          "description": "The interval between recurrences."
+        },
+        "until": {
+          "oneOf": [{ "$ref": "#/$defs/DateTime" }, { "$ref": "#/$defs/Date" }],
+          "description": "When the recurrence ends (date-time for timed events, date for all-day events)."
+        },
+        "count": {
+          "type": "integer",
+          "minimum": 1,
+          "description": "The number of occurrences."
+        },
+        "bySecond": {
+          "type": "array",
+          "description": "Optional array specifying the seconds for recurrence (0-59).",
+          "items": {
+            "type": "integer",
+            "minimum": 0,
+            "maximum": 59
+          },
+          "uniqueItems": true
+        },
+        "byMinute": {
+          "type": "array",
+          "description": "Optional array specifying the minutes for recurrence (0-59).",
+          "items": {
+            "type": "integer",
+            "minimum": 0,
+            "maximum": 59
+          },
+          "uniqueItems": true
+        },
+        "byHour": {
+          "type": "array",
+          "description": "Optional array specifying the hours for recurrence (0-23).",
+          "items": {
+            "type": "integer",
+            "minimum": 0,
+            "maximum": 23
+          },
+          "uniqueItems": true
+        },
+        "byDay": {
+          "type": "array",
+          "description": "Optional array specifying the days of the week for recurrence. Items can be simple weekday abbreviations (MO, TU, etc.) or ordinal day strings like '1MO' or '-1SU'.",
+          "items": {
+            "type": "string",
+            "pattern": "^-?[1-5]?(MO|TU|WE|TH|FR|SA|SU)$"
+          },
+          "uniqueItems": true,
+          "examples": [["MO", "WE", "FR"], ["1MO"], ["-1FR"]]
+        },
+        "byMonthDay": {
+          "type": "array",
+          "description": "Optional array specifying the days of the month for recurrence (1-31 or -31 to -1, zero is not allowed).",
+          "items": {
+            "type": "integer",
+            "minimum": -31,
+            "maximum": 31,
+            "not": { "const": 0 }
+          },
+          "uniqueItems": true
+        },
+        "byYearDay": {
+          "type": "array",
+          "description": "Optional array specifying the days of the year for recurrence (-366 to -1 or 1 to 366, zero is not allowed).",
+          "items": {
+            "type": "integer",
+            "minimum": -366,
+            "maximum": 366,
+            "not": { "const": 0 }
+          },
+          "uniqueItems": true
+        },
+        "byWeekNumber": {
+          "type": "array",
+          "description": "Optional array specifying the week numbers for recurrence (-53 to -1 or 1 to 53, zero is not allowed).",
+          "items": {
+            "type": "integer",
+            "minimum": -53,
+            "maximum": 53,
+            "not": { "const": 0 }
+          },
+          "uniqueItems": true
+        },
+        "byMonth": {
+          "type": "array",
+          "description": "Optional array specifying the months for recurrence (1-12).",
+          "items": {
+            "type": "integer",
+            "minimum": 1,
+            "maximum": 12
+          },
+          "uniqueItems": true
+        },
+        "bySetPosition": {
+          "type": "array",
+          "description": "Optional array specifying the nth occurrence within the set of recurrence instances.",
+          "items": {
+            "type": "integer",
+            "minimum": -366,
+            "maximum": 366,
+            "not": { "const": 0 }
+          },
+          "uniqueItems": true
+        },
+        "weekStart": {
+          "type": "string",
+          "description": "Optional week start day for the recurrence (defaults to MO if not provided).",
+          "enum": ["MO", "TU", "WE", "TH", "FR", "SA", "SU"],
+          "default": "MO"
+        }
+      },
+      "oneOf": [
+        { "required": ["until"] },
+        { "required": ["count"] },
+        {
+          "not": {
+            "anyOf": [{ "required": ["until"] }, { "required": ["count"] }]
+          }
+        }
+      ],
+      "additionalProperties": false
+    },
+    "Notification": {
+      "type": "object",
+      "required": ["action", "trigger"],
+      "properties": {
+        "action": {
+          "type": "string",
+          "enum": ["display", "email"],
+          "description": "The type of notification."
+        },
+        "trigger": {
+          "oneOf": [
+            { "$ref": "#/$defs/Duration" },
+            { "$ref": "#/$defs/DateTime" }
+          ],
+          "description": "Either a structured duration object representing a relative trigger or an absolute UTC date-time string."
+        },
+        "message": {
+          "type": "string",
+          "description": "The message to be displayed or sent with the notification.",
+          "maxLength": 1000
+        }
+      },
+      "additionalProperties": false
+    },
+    "Attendee": {
+      "type": "object",
+      "required": ["name", "email"],
+      "properties": {
+        "name": {
+          "type": "string",
+          "description": "The attendee's name.",
+          "minLength": 1,
+          "examples": ["John Doe", "Jane Smith"]
+        },
+        "email": {
+          "$ref": "#/$defs/Email",
+          "description": "The attendee's email address."
+        },
+        "responseStatus": {
+          "type": "string",
+          "enum": ["accepted", "declined", "tentative", "needs-action"],
+          "default": "needs-action",
+          "description": "The attendee's response status."
+        }
+      },
+      "additionalProperties": false
+    },
+    "Event": {
+      "type": "object",
+      "required": ["uid", "summary", "start", "end"],
+      "properties": {
+        "uid": {
+          "type": "string",
+          "description": "A globally unique identifier for the event.",
+          "minLength": 1,
+          "examples": [
+            "550e8400-e29b-41d4-a716-446655440000",
+            "event-12345@example.com"
+          ]
+        },
+        "summary": {
+          "type": "string",
+          "description": "A short title or summary for the event.",
+          "minLength": 1,
+          "maxLength": 255
+        },
+        "description": {
+          "type": "string",
+          "description": "A detailed description of the event. (UTF-8 encoded; no legacy escaping or folding needed.)",
+          "contentMediaType": "text/plain"
+        },
+        "allDay": {
+          "type": "boolean",
+          "description": "Indicates whether this is an all-day event. When true, start and end should use date format (YYYY-MM-DD) instead of date-time format.",
+          "default": false
+        },
+        "location": {
+          "$ref": "#/$defs/Location"
+        },
+        "start": {
+          "description": "The event start date/time."
+        },
+        "end": {
+          "description": "The event end date/time."
+        },
+        "recurrence": {
+          "$ref": "#/$defs/Recurrence"
+        },
+        "notifications": {
+          "type": "array",
+          "description": "Optional notifications or reminders for the event.",
+          "items": {
+            "$ref": "#/$defs/Notification"
+          },
+          "maxItems": 10
+        },
+        "attendees": {
+          "type": "array",
+          "description": "Optional list of event attendees.",
+          "items": {
+            "$ref": "#/$defs/Attendee"
+          }
+        }
+      },
+      "allOf": [
+        {
+          "if": {
+            "properties": { "allDay": { "const": true } }
+          },
+          "then": {
+            "properties": {
+              "start": { "$ref": "#/$defs/Date" },
+              "end": { "$ref": "#/$defs/Date" }
+            }
+          },
+          "else": {
+            "properties": {
+              "start": { "$ref": "#/$defs/DateTime" },
+              "end": { "$ref": "#/$defs/DateTime" }
+            }
+          }
+        }
+      ],
       "additionalProperties": false
     }
   },
@@ -41,13 +378,14 @@
   "required": ["version", "productIdentifier", "calendar"],
   "properties": {
     "version": {
-      "type": "string",
-      "enum": ["1.0"],
+      "const": "1.0",
       "description": "The version of the JSON Calendar format."
     },
     "productIdentifier": {
       "type": "string",
-      "description": "A product identifier for the application or system generating the file."
+      "pattern": "^[A-Za-z0-9.-]+/[A-Za-z0-9.-]+$",
+      "description": "A product identifier for the application or system generating the file (e.g., 'CompanyName/ProductName').",
+      "examples": ["Anthropic/Claude", "Microsoft/Outlook", "Google/Calendar"]
     },
     "calendar": {
       "type": "object",
@@ -55,302 +393,39 @@
       "properties": {
         "timezone": {
           "type": "string",
-          "description": "An IANA time zone identifier (e.g., 'America/New_York'). This is the default display timezone for the calendar. All event times are stored in UTC."
+          "pattern": "^[A-Za-z]+(/[A-Za-z_]+)*$",
+          "description": "An IANA time zone identifier (e.g., 'America/New_York'). This is the default display timezone for the calendar. All event times are stored in UTC.",
+          "examples": ["America/New_York", "Europe/London", "Asia/Tokyo", "UTC"]
         },
         "name": {
           "type": "string",
-          "description": "An optional human-readable name for the calendar."
+          "description": "An optional human-readable name for the calendar.",
+          "maxLength": 255
         },
         "description": {
           "type": "string",
-          "description": "An optional description for the calendar."
+          "description": "An optional description for the calendar.",
+          "contentMediaType": "text/plain"
         },
         "events": {
           "type": "array",
           "description": "A list of calendar events.",
           "items": {
-            "type": "object",
-            "required": ["uid", "summary", "start", "end"],
-            "properties": {
-              "uid": {
-                "type": "string",
-                "description": "A globally unique identifier for the event."
-              },
-              "summary": {
-                "type": "string",
-                "description": "A short title or summary for the event."
-              },
-              "description": {
-                "type": "string",
-                "description": "A detailed description of the event. (UTF-8 encoded; no legacy escaping or folding needed.)"
-              },
-              "allDay": {
-                "type": "boolean",
-                "description": "Indicates whether this is an all-day event. When true, start and end should use date format (YYYY-MM-DD) instead of date-time format.",
-                "default": false
-              },
-              "location": {
-                "type": "object",
-                "description": "A structured representation of the event location.",
-                "required": ["name"],
-                "properties": {
-                  "name": {
-                    "type": "string",
-                    "description": "Name or title of the location."
-                  },
-                  "address": {
-                    "type": "string",
-                    "description": "The physical address of the location."
-                  },
-                  "latitude": {
-                    "type": "number",
-                    "description": "The latitude coordinate of the location."
-                  },
-                  "longitude": {
-                    "type": "number",
-                    "description": "The longitude coordinate of the location."
-                  },
-                  "mapURL": {
-                    "type": "string",
-                    "format": "uri",
-                    "description": "An optional URL for a map service (e.g., Google Maps, Apple Maps) to view the location."
-                  }
-                },
-                "additionalProperties": false
-              },
-              "start": {
-                "anyOf": [
-                  {
-                    "type": "string",
-                    "format": "date-time",
-                    "description": "The event start date and time in ISO 8601 UTC format (e.g., '2024-12-25T15:00:00Z'). Used when allDay is false or not specified."
-                  },
-                  {
-                    "type": "string",
-                    "format": "date",
-                    "description": "The event start date in ISO 8601 date format (e.g., '2024-12-25'). Used when allDay is true."
-                  }
-                ]
-              },
-              "end": {
-                "anyOf": [
-                  {
-                    "type": "string",
-                    "format": "date-time",
-                    "description": "The event end date and time in ISO 8601 UTC format (e.g., '2024-12-25T17:00:00Z'). Used when allDay is false or not specified."
-                  },
-                  {
-                    "type": "string",
-                    "format": "date",
-                    "description": "The event end date in ISO 8601 date format (e.g., '2024-12-25'). Used when allDay is true."
-                  }
-                ]
-              },
-              "recurrence": {
-                "type": "object",
-                "description": "Details for recurring events.",
-                "properties": {
-                  "frequency": {
-                    "type": "string",
-                    "enum": [
-                      "second",
-                      "minute",
-                      "hour",
-                      "day",
-                      "week",
-                      "month",
-                      "year"
-                    ],
-                    "description": "The frequency of recurrence."
-                  },
-                  "interval": {
-                    "type": "integer",
-                    "minimum": 1,
-                    "description": "The interval between recurrences."
-                  },
-                  "until": {
-                    "anyOf": [
-                      {
-                        "type": "string",
-                        "format": "date-time",
-                        "description": "A UTC date-time indicating when the recurrence ends (for timed events)."
-                      },
-                      {
-                        "type": "string",
-                        "format": "date",
-                        "description": "A date indicating when the recurrence ends (for all-day events)."
-                      }
-                    ]
-                  },
-                  "count": {
-                    "type": "integer",
-                    "minimum": 1,
-                    "description": "The number of occurrences."
-                  },
-                  "bySecond": {
-                    "type": "array",
-                    "description": "Optional array specifying the seconds for recurrence (0-59).",
-                    "items": {
-                      "type": "integer",
-                      "minimum": 0,
-                      "maximum": 59
-                    }
-                  },
-                  "byMinute": {
-                    "type": "array",
-                    "description": "Optional array specifying the minutes for recurrence (0-59).",
-                    "items": {
-                      "type": "integer",
-                      "minimum": 0,
-                      "maximum": 59
-                    }
-                  },
-                  "byHour": {
-                    "type": "array",
-                    "description": "Optional array specifying the hours for recurrence (0-23).",
-                    "items": {
-                      "type": "integer",
-                      "minimum": 0,
-                      "maximum": 23
-                    }
-                  },
-                  "byDay": {
-                    "type": "array",
-                    "description": "Optional array specifying the days of the week for recurrence. Items can be simple weekday abbreviations (MO, TU, etc.) or ordinal day strings like '1MO' or '-1SU'.",
-                    "items": {
-                      "type": "string",
-                      "pattern": "^-?[1-5]?(MO|TU|WE|TH|FR|SA|SU)$"
-                    }
-                  },
-                  "byMonthDay": {
-                    "type": "array",
-                    "description": "Optional array specifying the days of the month for recurrence (1-31 or -31 to -1, zero is not allowed).",
-                    "items": {
-                      "type": "integer",
-                      "minimum": -31,
-                      "maximum": 31,
-                      "not": {
-                        "const": 0
-                      }
-                    }
-                  },
-                  "byYearDay": {
-                    "type": "array",
-                    "description": "Optional array specifying the days of the year for recurrence (-366 to -1 or 1 to 366, zero is not allowed).",
-                    "items": {
-                      "type": "integer",
-                      "minimum": -366,
-                      "maximum": 366,
-                      "not": {
-                        "const": 0
-                      }
-                    }
-                  },
-                  "byWeekNumber": {
-                    "type": "array",
-                    "description": "Optional array specifying the week numbers for recurrence (-53 to -1 or 1 to 53, zero is not allowed).",
-                    "items": {
-                      "type": "integer",
-                      "minimum": -53,
-                      "maximum": 53,
-                      "not": {
-                        "const": 0
-                      }
-                    }
-                  },
-                  "byMonth": {
-                    "type": "array",
-                    "description": "Optional array specifying the months for recurrence (1-12).",
-                    "items": {
-                      "type": "integer",
-                      "minimum": 1,
-                      "maximum": 12
-                    }
-                  },
-                  "bySetPosition": {
-                    "type": "array",
-                    "description": "Optional array specifying the nth occurrence within the set of recurrence instances.",
-                    "items": {
-                      "type": "integer"
-                    }
-                  },
-                  "weekStart": {
-                    "type": "string",
-                    "description": "Optional week start day for the recurrence (defaults to MO if not provided).",
-                    "enum": ["MO", "TU", "WE", "TH", "FR", "SA", "SU"]
-                  }
-                },
-                "additionalProperties": false
-              },
-              "notifications": {
-                "type": "array",
-                "description": "Optional notifications or reminders for the event.",
-                "items": {
-                  "type": "object",
-                  "required": ["action", "trigger"],
-                  "properties": {
-                    "action": {
-                      "type": "string",
-                      "enum": ["display", "email"],
-                      "description": "The type of notification."
-                    },
-                    "trigger": {
-                      "oneOf": [
-                        {
-                          "$ref": "#/$defs/Duration"
-                        },
-                        {
-                          "type": "string",
-                          "format": "date-time",
-                          "description": "An absolute UTC date-time when the notification should trigger."
-                        }
-                      ],
-                      "description": "Either a structured duration object representing a relative trigger or an absolute UTC date-time string."
-                    },
-                    "message": {
-                      "type": "string",
-                      "description": "The message to be displayed or sent with the notification."
-                    }
-                  },
-                  "additionalProperties": false
-                }
-              },
-              "attendees": {
-                "type": "array",
-                "description": "Optional list of event attendees.",
-                "items": {
-                  "type": "object",
-                  "required": ["name", "email"],
-                  "properties": {
-                    "name": {
-                      "type": "string",
-                      "description": "The attendee's name."
-                    },
-                    "email": {
-                      "type": "string",
-                      "format": "email",
-                      "description": "The attendee's email address."
-                    },
-                    "responseStatus": {
-                      "type": "string",
-                      "enum": [
-                        "accepted",
-                        "declined",
-                        "tentative",
-                        "needs-action"
-                      ],
-                      "description": "The attendee's response status."
-                    }
-                  },
-                  "additionalProperties": false
-                }
-              }
-            },
-            "additionalProperties": false
+            "$ref": "#/$defs/Event"
           }
         }
       },
+      "patternProperties": {
+        "^x-": {
+          "description": "Extension properties must start with 'x-'"
+        }
+      },
       "additionalProperties": false
+    }
+  },
+  "patternProperties": {
+    "^x-": {
+      "description": "Extension properties must start with 'x-'"
     }
   },
   "additionalProperties": false
