@@ -256,7 +256,7 @@
         }
       ],
       "additionalProperties": false,
-      "$comment": "Semantic validation requirements for implementations: (1) if byMonthDay contains values > 29, implementations should handle non-existent dates gracefully (e.g., Feb 30), (2) bySetPosition is applied AFTER all other by* rules to select specific instances, (3) multiple by* rules create an intersection (AND) not union (OR) of occurrences"
+      "$comment": "Semantic validation requirements for implementations: (1) if byMonthDay contains values > 29, implementations should handle non-existent dates gracefully (e.g., Feb 30), (2) bySetPosition is applied AFTER all other by* rules to select specific instances, (3) multiple by* rules create an intersection (AND) not union (OR) of occurrences, (4) when calculating recurring events with an originalTimezone, expand occurrences in that timezone to preserve local time semantics across DST transitions"
     },
     "Notification": {
       "type": "object",
@@ -351,6 +351,13 @@
         "end": {
           "description": "The event end date/time."
         },
+        "originalTimezone": {
+          "type": "string",
+          "pattern": "^[A-Za-z]+(/[A-Za-z_]+)*$",
+          "description": "The original timezone where the event was created. Critical for recurring events to handle DST transitions correctly. While event times are stored in UTC, this preserves the intended local time behavior.",
+          "examples": ["America/New_York", "Europe/London", "Asia/Tokyo"],
+          "$comment": "For recurring events, this timezone should be used to calculate occurrences, then convert to UTC for storage. This ensures 'every Monday at 9am' remains at 9am local time across DST transitions."
+        },
         "recurrence": {
           "$ref": "#/$defs/Recurrence"
         },
@@ -431,10 +438,10 @@
         }
       ],
       "additionalProperties": false,
-      "$comment": "Additional semantic validations that implementations MUST enforce: (1) end >= start for both date and datetime events, (2) recurrence.until >= start if present, (3) recurrence.count must be >= 1 if present, (4) relative notification triggers must be negative for 'before event' reminders"
+      "$comment": "Additional semantic validations that implementations MUST enforce: (1) end >= start for both date and datetime events, (2) recurrence.until >= start if present, (3) recurrence.count must be >= 1 if present, (4) relative notification triggers must be negative for 'before event' reminders. For timezone handling: When originalTimezone is provided, recurring events should be calculated in that timezone, then converted to UTC. This ensures consistent local times across DST boundaries."
     }
   },
-  "$comment": "JSON Calendar Format - Implementations MUST enforce semantic validations beyond structural validation. See individual $comment fields for specific requirements.",
+  "$comment": "JSON Calendar Format - Implementations MUST enforce semantic validations beyond structural validation. See individual $comment fields for specific requirements. Timezone Handling: All times are stored in UTC, but originalTimezone preserves the creator's intent for recurring events. When processing recurring events with an originalTimezone, calculate occurrences in that timezone, then convert to UTC. This ensures events like 'every Monday at 9am' remain at 9am local time regardless of DST changes.",
   "type": "object",
   "required": ["version", "productIdentifier", "calendar"],
   "properties": {
@@ -448,6 +455,12 @@
       "description": "A product identifier for the application or system generating the file (e.g., 'CompanyName/ProductName').",
       "examples": ["Anthropic/Claude", "Microsoft/Outlook", "Google/Calendar"]
     },
+    "timezoneDatabase": {
+      "type": "string",
+      "pattern": "^\\d{4}[a-z]$",
+      "description": "The IANA Time Zone Database version used when creating this file (e.g., '2024a'). This ensures timezone calculations can be reproduced accurately.",
+      "examples": ["2024a", "2023c", "2025b"]
+    },
     "calendar": {
       "type": "object",
       "required": ["timezone", "events"],
@@ -456,7 +469,13 @@
           "type": "string",
           "pattern": "^[A-Za-z]+(/[A-Za-z_]+)*$",
           "description": "An IANA time zone identifier (e.g., 'America/New_York'). This is the default display timezone for the calendar. All event times are stored in UTC.",
-          "examples": ["America/New_York", "Europe/London", "Asia/Tokyo", "UTC"]
+          "examples": [
+            "America/New_York",
+            "Europe/London",
+            "Asia/Tokyo",
+            "UTC"
+          ],
+          "$comment": "This is the calendar's display timezone. Individual events may have been created in different timezones (see event.originalTimezone). For timezone changes or discontinuities, implementations should use the timezoneDatabase version specified at the root level."
         },
         "name": {
           "type": "string",
