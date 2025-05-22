@@ -25,20 +25,10 @@
     },
     "Duration": {
       "title": "Duration",
-      "description": "A structured representation of an ISO 8601 duration. At least one property is required.",
+      "description": "A structured representation of a duration for notification triggers. At least one property is required.",
       "type": "object",
       "minProperties": 1,
       "properties": {
-        "years": {
-          "type": "number",
-          "minimum": 0,
-          "default": 0
-        },
-        "months": {
-          "type": "number",
-          "minimum": 0,
-          "default": 0
-        },
         "days": {
           "type": "number",
           "minimum": 0,
@@ -50,11 +40,6 @@
           "default": 0
         },
         "minutes": {
-          "type": "number",
-          "minimum": 0,
-          "default": 0
-        },
-        "seconds": {
           "type": "number",
           "minimum": 0,
           "default": 0
