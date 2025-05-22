@@ -144,7 +144,8 @@
             "minimum": 0,
             "maximum": 59
           },
-          "uniqueItems": true
+          "uniqueItems": true,
+          "minItems": 1
         },
         "byMinute": {
           "type": "array",
@@ -154,7 +155,8 @@
             "minimum": 0,
             "maximum": 59
           },
-          "uniqueItems": true
+          "uniqueItems": true,
+          "minItems": 1
         },
         "byHour": {
           "type": "array",
@@ -164,7 +166,8 @@
             "minimum": 0,
             "maximum": 23
           },
-          "uniqueItems": true
+          "uniqueItems": true,
+          "minItems": 1
         },
         "byDay": {
           "type": "array",
@@ -174,6 +177,7 @@
             "pattern": "^-?[1-5]?(MO|TU|WE|TH|FR|SA|SU)$"
           },
           "uniqueItems": true,
+          "minItems": 1,
           "examples": [["MO", "WE", "FR"], ["1MO"], ["-1FR"]]
         },
         "byMonthDay": {
@@ -185,7 +189,8 @@
             "maximum": 31,
             "not": { "const": 0 }
           },
-          "uniqueItems": true
+          "uniqueItems": true,
+          "minItems": 1
         },
         "byYearDay": {
           "type": "array",
@@ -196,7 +201,8 @@
             "maximum": 366,
             "not": { "const": 0 }
           },
-          "uniqueItems": true
+          "uniqueItems": true,
+          "minItems": 1
         },
         "byWeekNumber": {
           "type": "array",
@@ -207,7 +213,8 @@
             "maximum": 53,
             "not": { "const": 0 }
           },
-          "uniqueItems": true
+          "uniqueItems": true,
+          "minItems": 1
         },
         "byMonth": {
           "type": "array",
@@ -217,7 +224,8 @@
             "minimum": 1,
             "maximum": 12
           },
-          "uniqueItems": true
+          "uniqueItems": true,
+          "minItems": 1
         },
         "bySetPosition": {
           "type": "array",
@@ -228,7 +236,8 @@
             "maximum": 366,
             "not": { "const": 0 }
           },
-          "uniqueItems": true
+          "uniqueItems": true,
+          "minItems": 1
         },
         "weekStart": {
           "type": "string",
@@ -246,7 +255,8 @@
           }
         }
       ],
-      "additionalProperties": false
+      "additionalProperties": false,
+      "$comment": "Semantic validation requirements for implementations: (1) if byMonthDay contains values > 29, implementations should handle non-existent dates gracefully (e.g., Feb 30), (2) bySetPosition is applied AFTER all other by* rules to select specific instances, (3) multiple by* rules create an intersection (AND) not union (OR) of occurrences"
     },
     "Notification": {
       "type": "object",
@@ -259,7 +269,15 @@
         },
         "trigger": {
           "oneOf": [
-            { "$ref": "#/$defs/Duration" },
+            {
+              "allOf": [
+                { "$ref": "#/$defs/Duration" },
+                {
+                  "$comment": "Duration triggers are relative to event start. Negative values indicate 'before', positive values indicate 'after'",
+                  "description": "For notifications before the event, all non-zero duration components should result in a time before the event start"
+                }
+              ]
+            },
             { "$ref": "#/$defs/DateTime" }
           ],
           "description": "Either a structured duration object representing a relative trigger or an absolute UTC date-time string."
@@ -354,6 +372,7 @@
       },
       "allOf": [
         {
+          "$comment": "Enforce that all-day events use date format and timed events use date-time format",
           "if": {
             "properties": { "allDay": { "const": true } }
           },
@@ -369,11 +388,53 @@
               "end": { "$ref": "#/$defs/DateTime" }
             }
           }
+        },
+        {
+          "$comment": "Semantic validation: end time must not be before start time",
+          "if": {
+            "properties": {
+              "allDay": { "const": false }
+            }
+          },
+          "then": {
+            "$comment": "For date-time events, we cannot directly compare in JSON Schema, but implementations should validate this",
+            "description": "Implementation requirement: end datetime must be greater than or equal to start datetime"
+          }
+        },
+        {
+          "$comment": "For recurring events with an 'until' date, the 'until' must be after the 'start'",
+          "if": {
+            "properties": {
+              "recurrence": {
+                "type": "object",
+                "required": ["until"]
+              }
+            }
+          },
+          "then": {
+            "description": "Implementation requirement: recurrence.until must be greater than or equal to event start"
+          }
+        },
+        {
+          "$comment": "Notification triggers in the past (relative to event start) must use negative durations",
+          "if": {
+            "properties": {
+              "notifications": {
+                "type": "array",
+                "minItems": 1
+              }
+            }
+          },
+          "then": {
+            "description": "Implementation requirement: relative notification triggers before the event must use negative duration values"
+          }
         }
       ],
-      "additionalProperties": false
+      "additionalProperties": false,
+      "$comment": "Additional semantic validations that implementations MUST enforce: (1) end >= start for both date and datetime events, (2) recurrence.until >= start if present, (3) recurrence.count must be >= 1 if present, (4) relative notification triggers must be negative for 'before event' reminders"
     }
   },
+  "$comment": "JSON Calendar Format - Implementations MUST enforce semantic validations beyond structural validation. See individual $comment fields for specific requirements.",
   "type": "object",
   "required": ["version", "productIdentifier", "calendar"],
   "properties": {
