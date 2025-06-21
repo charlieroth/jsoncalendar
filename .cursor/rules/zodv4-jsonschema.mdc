@@ -3,53 +3,228 @@ description:
 globs: *.ts
 alwaysApply: false
 ---
-## Zod v4 guidelines
+## Zod v4 + JSON-Schema cookbook
 
-1. **Import style** → Always `import * as z from "zod/v4";`.
-3. **Schema declaration**
-   • Use chainable API (`z.string().min(1)`, `z.number().int()`, …).
-   • Call `.strict()` on objects unless `additionalProperties` are expected.
-   • Prefer helpers (`z.string().uuid()`, `.email()`, `.datetime()`) over regex where possible.
-4. **Metadata hooks**
-   • `.describe()` populates `description` in JSON Schema.
-   • `.meta({ title, examples, default })` maps to the same-named JSON Schema keywords.
-   • `z.globalRegistry` entries will be emitted automatically—no manual wiring required.
-5. **Deriving static types** → `export type Foo = z.infer<typeof FooSchema>;`.
-6. **Generating JSON Schema**
-   ```ts
-   import * as z from "zod/v4";
+### 1 · Import once, use everywhere
+```ts
+import * as z from "zod/v4";
+```
+No `zod/v3`, no default import, no re-export wrappers—keep it predictable.
 
-   const UserSchema = z.object({
-     id: z.string().uuid().describe("User ID"),
-     email: z.string().email(),
-   }).strict();
+---
 
-   // Runtime validation
-   UserSchema.parse({ id: crypto.randomUUID(), email: "hi@example.com" });
+### 2 · Scalar building blocks  
 
-   // Programmatic JSON Schema
-   const userJsonSchema = z.toJSONSchema(UserSchema);
-   /* → {
-        type: "object",
-        properties: {
-          id: { type: "string", format: "uuid", description: "User ID" },
-          email: { type: "string", format: "email" }
-        },
-        required: ["id", "email"]
-      }
-   */
-   ```
-7. **Custom transforms** → Transforms (`.transform()`) execute **after** validation and are *not* represented in JSON Schema. Keep them purely functional.
-8. **Unions/enums** → Map `z.union` → `oneOf`; `z.enum` → `enum` automatically.
-9. **Extensibility**
-   • `z.brand` types become `format` = "<brand>" by default.
-   • `pipe`, `catch`, or complex transforms may not be expressible—document these limitations.
-10. **Async parsing** → Use `.parseAsync()`/`.safeParseAsync()` if your schema includes async refinement; JSON Schema output remains synchronous.
+| Helper               | Typical JSON-Schema output                            |
+|----------------------|-------------------------------------------------------|
+| `z.string()`         | `{ type: "string" }`                                  |
+| `z.string().uuid()`  | `{ type: "string", format: "uuid" }`                  |
+| `z.string().email()` | `{ type: "string", format: "email" }`                 |
+| `z.number().int()`   | `{ type: "integer" }`                                 |
+| `z.number().finite().min(0)`| `{ type:"number", minimum:0, format:"finite"}` |
+| `z.boolean()`        | `{ type: "boolean" }`                                 |
+| `z.bigint()`         | `{ type: "integer", format: "int64" }`                |
+| `z.date()`           | `{ type: "string", format: "date-time" }`             |
+| `z.null()`           | `{ type: "null" }`                                    |
+| `z.literal("foo")`   | `{ const: "foo" }`                                    |
 
-## Quick checklist for the agent
+---
 
-- [ ] Imported from `"zod/v4"`? ✅
-- [ ] `.strict()` by default? ✅
-- [ ] Added `.describe()` for docs? ✅
-- [ ] Called `z.toJSONSchema()` for export? ✅
-- [ ] Exported `z.infer` type alias? ✅
+### 3 · Objects (always `.strict()` unless you **want** extras)
+```ts
+const ProfileSchema = z.object({
+  id:         z.string().uuid().describe("Primary key"),
+  username:   z.string().min(3).max(16),
+  bio:        z.string().max(160).optional(),
+  created_at: z.date(),
+}).strict();               // ⟵ additionalProperties = false
+
+type Profile = z.infer<typeof ProfileSchema>; // static TS type
+```
+
+Need a “bag of extras”? swap `.strict()` for `.passthrough()` (keeps unknown keys) or `.catchall(z.unknown())`.
+
+---
+
+### 4 · Collections
+```ts
+// Homogeneous
+const TagArray   = z.array(z.string().min(1)).min(1);
+const Dict       = z.record(z.string(), z.number().int());
+
+// Heterogeneous
+const Position2D = z.tuple([z.number(), z.number()]).describe("x, y");
+
+// Fixed-key → variable-value
+const MapLike    = z.map(z.string(), z.date());
+```
+
+---
+
+### 5 · Union, enum & discriminators
+```ts
+// Simple enum
+const RGB = z.enum(["red","green","blue"]);
+
+// Literal union  → oneOf
+const HttpMethod = z.union([
+  z.literal("GET"), z.literal("POST"), z.literal("PUT"), z.literal("DELETE")
+]);
+
+// Discriminated union (compact runtime switch)
+const Animal = z.discriminatedUnion("kind", [
+  z.object({ kind: z.literal("cat"),  meows: z.boolean() }).strict(),
+  z.object({ kind: z.literal("dog"),  barks: z.boolean() }).strict(),
+]);
+```
+
+---
+
+### 6 · Intersection & merging
+```ts
+const Timestamps = z.object({
+  created: z.date(),
+  updated: z.date(),
+}).strict();
+
+const WithId = z.object({ id: z.string().uuid() }).strict();
+
+const Audited = z.intersection(WithId, Timestamps); // deep-merges properties
+```
+
+---
+
+### 7 · Refinement & superRefine
+```ts
+const Password = z.string().min(8)
+  .superRefine((val, ctx) => {
+    if (!/[A-Z]/.test(val)) ctx.addIssue({ code:"custom", message:"Must contain capital" });
+    if (!/[0-9]/.test(val)) ctx.addIssue({ code:"custom", message:"Must contain digit"   });
+  });
+```
+`superRefine` ⇒ multi-issue, full path control.  
+`refine` ⇒ simple pass/fail.
+
+---
+
+### 8 · Transformations (not in JSON-Schema!)
+```ts
+// ISO-string  →  Date
+const IsoDate = z.string().datetime().transform(val => new Date(val));
+IsoDate.parse("2025-01-01T00:00:00Z")  // → Date instance
+```
+Always remember: transforms happen **after** validation and are **omitted** from the generated schema.
+
+---
+
+### 9 · Async validation
+```ts
+const UserByEmail = z.string().email()
+  .refineAsync(async email => await db.user.exists(email), { message:"Unknown email" });
+
+await UserByEmail.parseAsync("hi@example.com");
+```
+Async refinements force `.parseAsync/.safeParseAsync`. JSON-Schema output is still synchronous.
+
+---
+
+### 10 · Branding → JSON-Schema `format`
+```ts
+const Dollars = z.number().brand<"usd">();
+type Dollars  = z.infer<typeof Dollars>;          // branded primitive
+z.toJSONSchema(Dollars);  // { type:"number", format:"usd" }
+```
+
+---
+
+### 11 · Recursive structures with `z.lazy`
+```ts
+const Category: z.ZodType<{ name:string; sub?:any[] }> = z.lazy(() =>
+  z.object({
+    name: z.string(),
+    sub:  z.array(Category).optional(),
+  }).strict()
+);
+```
+
+---
+
+### 12 · Global registry & \$refs
+```ts
+z.globalRegistry.set("Profile", ProfileSchema);
+
+const Article = z.object({
+  author: z.ref("Profile"),        // 🔗 $ref:#/$defs/Profile
+  title:  z.string(),
+}).strict();
+
+const schema = z.toJSONSchema(Article, { name:"Article" });
+```
+
+---
+
+### 13 · Putting it together — Event schema (JSON Calendar v0.1 inspired)
+```ts
+const Rfc3339 = z.string().datetime(); // <— can be global-registered
+
+const EventSchema = z.object({
+  uid:          z.string().uuid(),
+  summary:      z.string().min(1),
+  description:  z.string().max(1024).optional(),
+  start:        Rfc3339,
+  end:          Rfc3339.refine(e => Date.parse(e) > 0, { message:"Invalid ISO date" }),
+  transparency: z.enum(["opaque","transparent"]).default("opaque"),
+  alarms:       z.array(
+                  z.object({
+                    trigger: z.string(),        // e.g. "-PT10M"
+                    action:  z.literal("audio"),
+                  }).strict()
+                ).optional(),
+}).strict().describe("Single calendar event");
+
+export type Event = z.infer<typeof EventSchema>;
+
+export const EventJSON = z.toJSONSchema(EventSchema, { name:"Event" });
+```
+
+---
+
+### 14 · Limitations & gotchas
+1. Transforms, `pipe`, `catch` are fundamentally **runtime** concerns → not captured in JSON-Schema.  
+2. `superRefine` logic similarly vanishes from the schema; document constraints separately.  
+3. Branded formats are emitted, but consumers must agree on semantics.  
+4. `Date` values become `"date-time"` strings when serialized.  
+
+---
+
+### 15 · Agent checklist (failsafe)
+
+- [ ] Imported from `"zod/v4"`  
+- [ ] Used `.strict()` unless extras intended  
+- [ ] Added `.describe()` for docs  
+- [ ] Added `.meta({ title / examples / default })` where useful  
+- [ ] Registered reusable schemas via `z.globalRegistry`  
+- [ ] Called `z.toJSONSchema()` (with `name`) for export  
+- [ ] Exported `z.infer` type alias  
+
+---
+
+### Appendix · Cheat-sheet snippets
+
+```ts
+// Safe parsing with rich error → { success:false, error }
+const parsed = EventSchema.safeParse(json);
+
+// Default values
+const WithDefaults = z.object({
+  lang: z.literal("en").default("en"),
+  dark: z.boolean().default(false),
+}).strict();
+
+// Extending existing schemas
+const Extended = BaseSchema.merge(z.object({ foo:z.string() }).strict());
+
+// Compile-time only utility: assert type sameness
+import { expectTypeOf } from "vitest";
+expectTypeOf<Event>().toEqualTypeOf<SomeOtherType>();
+```
