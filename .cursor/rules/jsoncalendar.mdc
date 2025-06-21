@@ -1,0 +1,18 @@
+---
+description: 
+globs: 
+alwaysApply: true
+---
+## Project Overview
+
+This repository defines **JSON Calendar** v0.1 - a machine-readable calendar format. The authoritative Draft-2020-12 JSON Schema lives at [schema.json](mdc:schema.json).
+
+## Working with Zod
+
+Refer to [zodv4-jsonschema.mdc](mdc:.cursor/rules/zodv4-jsonschema.mdc) for how to work with the `zod` library.
+
+## FAQ for the agent
+
+**Q:** *Should we alter the JSON Schema?*  → **No.** Treat `jsoncalendar.schema.json` as the single source of truth.
+
+**Q:** *Need example payloads?* → Ask for explicit examples; do **not** invent unsupported keys.

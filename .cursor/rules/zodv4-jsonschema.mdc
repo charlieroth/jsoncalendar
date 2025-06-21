@@ -1,0 +1,55 @@
+---
+description: 
+globs: *.ts
+alwaysApply: false
+---
+## Zod v4 guidelines
+
+1. **Import style** → Always `import * as z from "zod/v4";`.
+3. **Schema declaration**
+   • Use chainable API (`z.string().min(1)`, `z.number().int()`, …).
+   • Call `.strict()` on objects unless `additionalProperties` are expected.
+   • Prefer helpers (`z.string().uuid()`, `.email()`, `.datetime()`) over regex where possible.
+4. **Metadata hooks**
+   • `.describe()` populates `description` in JSON Schema.
+   • `.meta({ title, examples, default })` maps to the same-named JSON Schema keywords.
+   • `z.globalRegistry` entries will be emitted automatically—no manual wiring required.
+5. **Deriving static types** → `export type Foo = z.infer<typeof FooSchema>;`.
+6. **Generating JSON Schema**
+   ```ts
+   import * as z from "zod/v4";
+
+   const UserSchema = z.object({
+     id: z.string().uuid().describe("User ID"),
+     email: z.string().email(),
+   }).strict();
+
+   // Runtime validation
+   UserSchema.parse({ id: crypto.randomUUID(), email: "hi@example.com" });
+
+   // Programmatic JSON Schema
+   const userJsonSchema = z.toJSONSchema(UserSchema);
+   /* → {
+        type: "object",
+        properties: {
+          id: { type: "string", format: "uuid", description: "User ID" },
+          email: { type: "string", format: "email" }
+        },
+        required: ["id", "email"]
+      }
+   */
+   ```
+7. **Custom transforms** → Transforms (`.transform()`) execute **after** validation and are *not* represented in JSON Schema. Keep them purely functional.
+8. **Unions/enums** → Map `z.union` → `oneOf`; `z.enum` → `enum` automatically.
+9. **Extensibility**
+   • `z.brand` types become `format` = "<brand>" by default.
+   • `pipe`, `catch`, or complex transforms may not be expressible—document these limitations.
+10. **Async parsing** → Use `.parseAsync()`/`.safeParseAsync()` if your schema includes async refinement; JSON Schema output remains synchronous.
+
+## Quick checklist for the agent
+
+- [ ] Imported from `"zod/v4"`? ✅
+- [ ] `.strict()` by default? ✅
+- [ ] Added `.describe()` for docs? ✅
+- [ ] Called `z.toJSONSchema()` for export? ✅
+- [ ] Exported `z.infer` type alias? ✅
