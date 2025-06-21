@@ -1,21 +1,21 @@
 import * as z from "zod/v4";
 
 // Atomic scalar schemas
-const DateTimeSchema = z
+export const DateTimeSchema = z
   .iso
   .datetime()
   .describe("ISO-8601 date-time string");
 
-const DateSchema = z
+export const DateSchema = z
   .string()
   .regex(/^[\d]{4}-[\d]{2}-[\d]{2}$/, "Invalid date format (YYYY-MM-DD)")
   .describe("Date in YYYY-MM-DD format");
 
 // Alarm primitive (identical to DateTime)
-const AlarmSchema = DateTimeSchema.describe("Alarm timestamp");
+export const AlarmSchema = DateTimeSchema.describe("Alarm timestamp");
 
 // Recurrence rule (RFC 5545 subset)
-const RRuleSchema = z
+export const RRuleSchema = z
   .object({
     frequency: z.enum(["DAILY", "WEEKLY", "MONTHLY", "YEARLY"]),
     interval: z.number().int().min(1).default(1),
@@ -60,7 +60,7 @@ const RRuleSchema = z
   .describe("Recurrence rule object");
 
 // Override for individual recurrence instances
-const OverrideEventSchema = z
+export const OverrideEventSchema = z
   .object({
     cancelled: z.boolean().optional(),
     title: z.string().optional(),
@@ -75,7 +75,7 @@ const OverrideEventSchema = z
   .describe("Per-instance overrides for recurring events");
 
 // Core event object
-const EventSchema = z
+export const EventSchema = z
   .object({
     id: z.uuid().describe("Event UUID"),
     title: z.string().min(1).describe("Human-readable event title"),
@@ -92,7 +92,7 @@ const EventSchema = z
   .describe("Event object");
 
 // Top-level calendar document
-const CalendarSchema = z
+export const CalendarSchema = z
   .object({
     id: z.uuid().optional().describe("Calendar UUID"),
     name: z.string().min(1).optional().describe("Calendar name"),
@@ -108,15 +108,5 @@ const CalendarSchema = z
   .strict()
   .describe("JSON Calendar v0.1 root object");
 
-type Calendar = z.infer<typeof CalendarSchema>;
-type Event = z.infer<typeof EventSchema>;
-
-function main(): void {
-  const jsonSchema = z.toJSONSchema(CalendarSchema);
-  console.log(JSON.stringify(jsonSchema, null, 2));
-}
-
-// Execute when run directly (e.g., `bun run index.ts`)
-if (import.meta.main) {
-  main();
-}
+export type Calendar = z.infer<typeof CalendarSchema>;
+export type Event = z.infer<typeof EventSchema>;
